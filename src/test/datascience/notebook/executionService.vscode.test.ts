@@ -449,9 +449,6 @@ suite('DataScience - VSCode Notebook - (Execution) (slow)', function () {
                 return this.skip();
             }
         }
-        await Promise.all([waitForCellExecutionToComplete(cell3), waitForCellHavingOutput(cell3)]);
-
-        const sysExecutable = getCellOutputs(cell3).trim();
 
         // On windows `!where python`, prints multiple items in the output (all executables found).
         const cell1Output = getCellOutputs(cell1);
@@ -461,6 +458,8 @@ suite('DataScience - VSCode Notebook - (Execution) (slow)', function () {
             .trim();
 
         await Promise.all([waitForCellExecutionToComplete(cell3), waitForCellHavingOutput(cell3)]);
+
+        const sysExecutable = getCellOutputs(cell3).trim();
 
         // First path in PATH must be the directory where executable is located.
         assert.ok(
