@@ -387,9 +387,9 @@ export class Kernel implements IKernel {
             await this.restarting.promise;
         }
         if (!this._notebookPromise) {
-            traceInfoIfCI(`Create new cancellation token for ${getDisplayPath(this.notebookDocument.uri)}`);
             // Don't create a new one unnecessarily.
             if (this.startCancellation.token.isCancellationRequested) {
+                traceInfoIfCI(`Create new cancellation token for ${getDisplayPath(this.notebookDocument.uri)}`);
                 this.startCancellation = new CancellationTokenSource();
             }
             this._notebookPromise = this.createNotebook(new StopWatch()).catch((ex) => {
