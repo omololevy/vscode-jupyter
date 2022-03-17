@@ -341,10 +341,8 @@ export class Kernel implements IKernel {
         }
     }
     private async startNotebook(options: { disableUI?: boolean } = { disableUI: false }): Promise<INotebook> {
-        traceError(new Error('View Stack Trace for startNotebook'));
         this._startedAtLeastOnce = true;
         if (!options.disableUI) {
-            traceInfoIfCI(`Disabling UI for notebook startup`);
             this.startupUI.disableUI = false;
         }
         if (!this.startupUI.disableUI) {
@@ -385,10 +383,7 @@ export class Kernel implements IKernel {
         let disposables: Disposable[] = [];
         try {
             // No need to block kernel startup on UI updates.
-            traceInfo(
-                `Starting Notebook in kernel.ts id = ${this.kernelConnectionMetadata.id}, with ui.disableUI = ${this.startupUI.disableUI}`
-            );
-            traceError(new Error('View Stack Trace for createNotebook'));
+            traceInfo(`Starting Notebook in kernel.ts id = ${this.kernelConnectionMetadata.id}`);
             this.createProgressIndicator(disposables);
             this.isKernelDead = false;
             this._onStatusChanged.fire('starting');

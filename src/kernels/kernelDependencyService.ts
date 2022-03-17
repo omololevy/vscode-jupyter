@@ -62,11 +62,7 @@ export class KernelDependencyService implements IKernelDependencyService {
         @ignoreLogging() token: CancellationToken,
         ignoreCache?: boolean
     ): Promise<KernelInterpreterDependencyResponse> {
-        traceInfo(
-            `installMissingDependencies ${getDisplayPath(kernelConnection.interpreter?.path)} with ui.disableUI=${
-                ui.disableUI
-            }`
-        );
+        traceInfo(`installMissingDependencies ${getDisplayPath(kernelConnection.interpreter?.path)}`);
         if (
             kernelConnection.kind === 'connectToLiveKernel' ||
             kernelConnection.kind === 'startUsingRemoteKernelSpec' ||
