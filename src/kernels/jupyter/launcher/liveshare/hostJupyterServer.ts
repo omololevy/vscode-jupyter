@@ -171,7 +171,9 @@ export class HostJupyterServer implements INotebookServer {
     ): Promise<INotebook> {
         this.throwIfDisposedOrCancelled(cancelToken);
         traceInfoIfCI(
-            `HostJupyterServer.createNotebook for ${getDisplayPath(resource)} with ui.disableUI=${ui.disableUI}, cancelToken.isCancellationRequested=${cancelToken.isCancellationRequested}`
+            `HostJupyterServer.createNotebook for ${getDisplayPath(resource)} with ui.disableUI=${
+                ui.disableUI
+            }, cancelToken.isCancellationRequested=${cancelToken.isCancellationRequested}`
         );
         if (!this.sessionManager || this.isDisposed) {
             throw new SessionDisposedError();
