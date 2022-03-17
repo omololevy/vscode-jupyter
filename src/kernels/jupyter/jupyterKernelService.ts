@@ -60,7 +60,7 @@ export class JupyterKernelService {
         @logValue<KernelConnectionMetadata>('id') kernel: KernelConnectionMetadata,
         @logValue<IDisplayOptions>('disableUI') ui: IDisplayOptions,
         @ignoreLogging() cancelToken: CancellationToken
-        ): Promise<void> {
+    ): Promise<void> {
         traceVerbose('Check if a kernel is usable');
         // If we have an interpreter, make sure it has the correct dependencies installed
         if (

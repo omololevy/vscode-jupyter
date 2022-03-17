@@ -62,7 +62,11 @@ export class KernelDependencyService implements IKernelDependencyService {
         @ignoreLogging() token: CancellationToken,
         ignoreCache?: boolean
     ): Promise<KernelInterpreterDependencyResponse> {
-        traceInfo(`installMissingDependencies ${getDisplayPath(kernelConnection.interpreter?.path)}`);
+        traceInfo(
+            `installMissingDependencies ${getDisplayPath(kernelConnection.interpreter?.path)}, ui.disabled=${
+                ui.disableUI
+            }`
+        );
         if (
             kernelConnection.kind === 'connectToLiveKernel' ||
             kernelConnection.kind === 'startUsingRemoteKernelSpec' ||
@@ -163,7 +167,7 @@ export class KernelDependencyService implements IKernelDependencyService {
         ui: IDisplayOptions,
         cancelTokenSource: CancellationTokenSource
     ): Promise<KernelInterpreterDependencyResponse> {
-        traceInfoIfCI('Run Installer');
+        traceInfoIfCI(`Run Installer ${ui.disableUI}`);
         // If there's no UI, then cancel installation.
         if (ui.disableUI) {
             return KernelInterpreterDependencyResponse.uiHidden;
@@ -214,6 +218,7 @@ export class KernelDependencyService implements IKernelDependencyService {
                     pythonEnvType: interpreter.envType
                 });
             }
+            traceInfoIfCI(`Prompting user for install (this.isCodeSpace=${this.isCodeSpace}).`);
             const selection = this.isCodeSpace
                 ? Common.install()
                 : await Promise.race([

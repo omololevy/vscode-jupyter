@@ -194,6 +194,7 @@ export class Kernel implements IKernel {
         return promise;
     }
     public async executeHidden(code: string): Promise<nbformat.IOutput[]> {
+        traceInfoIfCI(`Execute hidden code ${code}`);
         const stopWatch = new StopWatch();
         const sessionPromise = this.startNotebook().then((nb) => nb.session);
         const promise = sessionPromise.then((session) => executeSilently(session, code));
@@ -342,6 +343,8 @@ export class Kernel implements IKernel {
     }
     private async startNotebook(options: { disableUI?: boolean } = { disableUI: false }): Promise<INotebook> {
         this._startedAtLeastOnce = true;
+        traceInfoIfCI(`Start Notebook (options.disableUI=${options.disableUI}).`);
+        console.error(new Error('(startNotebook). Where am I called from'));
         if (!options.disableUI) {
             this.startupUI.disableUI = false;
         }
@@ -384,6 +387,7 @@ export class Kernel implements IKernel {
         try {
             // No need to block kernel startup on UI updates.
             traceInfo(`Starting Notebook in kernel.ts id = ${this.kernelConnectionMetadata.id}`);
+            console.error(new Error('Where am I called from'));
             this.createProgressIndicator(disposables);
             this.isKernelDead = false;
             this._onStatusChanged.fire('starting');
