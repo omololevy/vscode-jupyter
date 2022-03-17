@@ -305,7 +305,11 @@ export class JupyterSession extends BaseJupyterSession {
             type: 'notebook'
         };
 
-        traceInfo(`Starting a new session for kernel id = ${this.kernelConnectionMetadata?.id}, name = ${kernelName}`);
+        traceInfo(
+            `Starting a new session for kernel id = ${
+                this.kernelConnectionMetadata?.id
+            }, name = ${kernelName} for ${getDisplayPath(this.resource)}`
+        );
         return Cancellation.race(
             () =>
                 this.sessionManager!.startNew(sessionOptions, {

@@ -14,7 +14,8 @@ import {
     NotebookController,
     NotebookDocument,
     ColorThemeKind,
-    Disposable
+    Disposable,
+    CancellationError
 } from 'vscode';
 import { IApplicationShell, IWorkspaceService } from '../client/common/application/types';
 import { WrappedError } from '../client/../extension/errors/types';
@@ -186,6 +187,9 @@ export class Kernel implements IKernel {
     }
 
     public async executeCell(cell: NotebookCell): Promise<NotebookCellRunState> {
+        if (cell.notebook.isClosed) {
+            return NotebookCellRunState.Idle;
+        }
         traceCellMessage(cell, `kernel.executeCell, ${getDisplayPath(cell.notebook.uri)}`);
         sendKernelTelemetryEvent(this.resourceUri, Telemetry.ExecuteCell);
         const stopWatch = new StopWatch();
@@ -242,7 +246,7 @@ export class Kernel implements IKernel {
         }
     }
     public async dispose(): Promise<void> {
-        traceInfoIfCI(`Dispose Kernel`);
+        traceInfoIfCI(`Dispose Kernel ${getDisplayPath(this.notebookDocument.uri)}`);
         this._disposing = true;
         if (this.disposingPromise) {
             return this.disposingPromise;
@@ -348,8 +352,14 @@ export class Kernel implements IKernel {
         }
     }
     private async startNotebook(options: { disableUI?: boolean } = { disableUI: false }): Promise<INotebook> {
+        if (this.notebookDocument.isClosed) {
+            traceWarning(`Notebook closed`);
+            throw new CancellationError();
+        }
         this._startedAtLeastOnce = true;
-        traceInfoIfCI(`Start Notebook (options.disableUI=${options.disableUI}).`);
+        traceInfoIfCI(
+            `Start Notebook (options.disableUI=${options.disableUI}) for ${getDisplayPath(this.notebookDocument.uri)}.`
+        );
         console.error(new Error('(startNotebook). Where am I called from'));
         if (!options.disableUI) {
             this.startupUI.disableUI = false;
@@ -377,8 +387,15 @@ export class Kernel implements IKernel {
             await this.restarting.promise;
         }
         if (!this._notebookPromise) {
-            this.startCancellation = new CancellationTokenSource();
+            traceInfoIfCI(`Create new cancellation token for ${getDisplayPath(this.notebookDocument.uri)}`);
+            // Don't create a new one unnecessarily.
+            if (this.startCancellation.token.isCancellationRequested) {
+                this.startCancellation = new CancellationTokenSource();
+            }
             this._notebookPromise = this.createNotebook(new StopWatch()).catch((ex) => {
+                traceInfoIfCI(
+                    `Failed to create Notebook in Kernel.startNotebook for ${getDisplayPath(this.notebookDocument.uri)}`
+                );
                 // If we fail also clear the promise.
                 this.startCancellation.cancel();
                 this._notebookPromise = undefined;
@@ -392,7 +409,11 @@ export class Kernel implements IKernel {
         let disposables: Disposable[] = [];
         try {
             // No need to block kernel startup on UI updates.
-            traceInfo(`Starting Notebook in kernel.ts id = ${this.kernelConnectionMetadata.id}`);
+            traceInfo(
+                `Starting Notebook in kernel.ts id = ${this.kernelConnectionMetadata.id} for ${getDisplayPath(
+                    this.notebookDocument.uri
+                )}`
+            );
             console.error(new Error('Where am I called from'));
             this.createProgressIndicator(disposables);
             this.isKernelDead = false;
@@ -471,7 +492,7 @@ export class Kernel implements IKernel {
     }
 
     private async initializeAfterStart(notebook: INotebook | undefined, notebookDocument: NotebookDocument) {
-        traceVerbose('Started running kernel initialization');
+        traceVerbose(`Started running kernel initialization for ${getDisplayPath(this.notebookDocument.uri)}`);
         if (!notebook) {
             traceVerbose('Not running kernel initialization');
             return;
