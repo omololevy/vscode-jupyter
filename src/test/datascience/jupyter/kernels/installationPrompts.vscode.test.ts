@@ -33,7 +33,7 @@ import { closeActiveWindows, initialize } from '../../../initialize';
 import { openNotebook, submitFromPythonFile } from '../../helpers';
 import { JupyterNotebookView } from '../../../../notebooks/constants';
 import { INotebookControllerManager } from '../../../../notebooks/types';
-import { WrappedError } from '../../../../client/../extension/errors/types';
+import { BaseKernelError, WrappedError } from '../../../../client/../extension/errors/types';
 import { Commands } from '../../../../client/datascience/constants';
 import { clearInstalledIntoInterpreterMemento } from '../../../../kernels/installer/productInstaller';
 import { ProductNames } from '../../../../kernels/installer/productNames';
@@ -476,8 +476,8 @@ suite('DataScience Install IPyKernel (slow) (install)', function () {
             await kernelStartSpy.getCall(0).returnValue;
             assert.fail('Did not fail as expected');
         } catch (ex) {
-            const err = WrappedError.unwrap(ex);
-            assert.strictEqual(err.category, 'kerneldied');
+            const err = WrappedError.unwrap(ex) as BaseKernelError;
+            assert.strictEqual(err.category, 'noipykernel');
         }
 
         console.log('Step6');
