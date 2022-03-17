@@ -8,7 +8,7 @@ import { CellExecutionFactory } from './cellExecution';
 import { CellExecutionQueue } from './cellExecutionQueue';
 import { KernelMessage } from '@jupyterlab/services';
 import { IApplicationShell } from '../../client/common/application/types';
-import { traceInfo, traceInfoIfCI, traceVerbose, traceWarning } from '../../client/common/logger';
+import { traceInfo, traceInfoIfCI, traceWarning } from '../../client/common/logger';
 import { IDisposable, IDisposableRegistry } from '../../client/common/types';
 import { createDeferred, waitForPromise } from '../../client/common/utils/async';
 import { StopWatch } from '../../client/common/utils/stopWatch';
