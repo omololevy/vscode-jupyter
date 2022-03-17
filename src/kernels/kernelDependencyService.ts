@@ -6,7 +6,7 @@
 import { inject, injectable, named } from 'inversify';
 import { CancellationToken, CancellationTokenSource, Memento } from 'vscode';
 import { IApplicationShell } from '../client/common/application/types';
-import { createPromiseFromCancellation, wrapCancellationTokens } from '../client/common/cancellation';
+import { createPromiseFromCancellation } from '../client/common/cancellation';
 import { traceInfo, traceError, traceInfoIfCI } from '../client/common/logger';
 import { getDisplayPath } from '../client/common/platform/fs-paths';
 import { IMemento, GLOBAL_MEMENTO, IsCodeSpace, Resource } from '../client/common/types';
