@@ -169,7 +169,7 @@ export class KernelDependencyService implements IKernelDependencyService {
         ui: IDisplayOptions,
         cancelTokenSource: CancellationTokenSource
     ): Promise<KernelInterpreterDependencyResponse> {
-        traceInfoIfCI(`Run Installer ui.disableUI=${ui.disableUI}`);
+        traceInfoIfCI(`Run Installer for ${getDisplayPath(resource)} ui.disableUI=${ui.disableUI}`);
         console.error(new Error('Run installer'));
         // If there's no UI, then cancel installation.
         if (ui.disableUI) {

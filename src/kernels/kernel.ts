@@ -71,6 +71,7 @@ import {
 } from './types';
 import { KernelExecution } from '../notebooks/execution/kernelExecution';
 import { traceCellMessage } from '../notebooks/helpers';
+import { Cancellation } from '../client/common/cancellation';
 
 export class Kernel implements IKernel {
     get connection(): INotebookProviderConnection | undefined {
@@ -404,9 +405,7 @@ export class Kernel implements IKernel {
                 kernelConnection: this.kernelConnectionMetadata,
                 token: this.startCancellation.token
             });
-            if (this.startCancellation.token.isCancellationRequested) {
-                throw new CancellationError();
-            }
+            Cancellation.throwIfCanceled(this.startCancellation.token);
             if (!notebook) {
                 // This is an unlikely case.
                 // getOrCreateNotebook would return undefined only if getOnly = true (an issue with typings).
@@ -430,9 +429,7 @@ export class Kernel implements IKernel {
             } else {
                 traceError(`failed to create INotebook in kernel, UI Disabled = ${this.startupUI.disableUI}`, ex);
             }
-            if (this.startCancellation.token.isCancellationRequested) {
-                throw new CancellationError();
-            }
+            Cancellation.throwIfCanceled(this.startCancellation.token);
             if (ex instanceof JupyterConnectError) {
                 throw ex;
             }

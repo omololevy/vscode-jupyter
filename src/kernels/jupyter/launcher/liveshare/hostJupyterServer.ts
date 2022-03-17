@@ -34,6 +34,8 @@ import { JupyterSessionManager } from '../../session/jupyterSessionManager';
 import { JupyterNotebook } from '../jupyterNotebook';
 import { noop } from '../../../../client/common/utils/misc';
 import { getDisplayPath } from '../../../../client/common/platform/fs-paths';
+import { CancellationError } from 'vscode';
+import { Cancellation } from '../../../../client/common/cancellation';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 @injectable()
@@ -159,6 +161,7 @@ export class HostJupyterServer implements INotebookServer {
         cancelToken: CancellationToken,
         ui: IDisplayOptions
     ): Promise<INotebook> {
+        Cancellation.throwIfCanceled(cancelToken);
         traceInfoIfCI(
             `HostJupyterServer.createNotebook for ${getDisplayPath(resource)} with ui.disableUI=${ui.disableUI}`
         );
@@ -175,6 +178,7 @@ export class HostJupyterServer implements INotebookServer {
                 cancelToken,
                 ui
             );
+            Cancellation.throwIfCanceled(cancelToken);
             const baseUrl = this.connection?.baseUrl || '';
             this.logRemoteOutput(DataScience.createdNewNotebook().format(baseUrl));
             sendKernelTelemetryEvent(resource, Telemetry.JupyterCreatingNotebook, stopWatch.elapsedTime);

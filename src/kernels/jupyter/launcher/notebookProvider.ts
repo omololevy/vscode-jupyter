@@ -4,7 +4,9 @@
 'use strict';
 
 import { inject, injectable } from 'inversify';
+import { CancellationError } from 'vscode';
 import { IPythonExtensionChecker } from '../../../client/api/types';
+import { Cancellation } from '../../../client/common/cancellation';
 import { IConfigurationService } from '../../../client/common/types';
 import { Settings } from '../../../client/datascience/constants';
 import { DisplayOptions } from '../../../client/datascience/displayOptions';
@@ -78,7 +80,7 @@ export class NotebookProvider implements INotebookProvider {
                 return undefined;
             }
         }
-
+        Cancellation.throwIfCanceled(options.token);
         trackKernelResourceInformation(options.resource, { kernelConnection: options.kernelConnection });
         const promise = rawLocalKernel
             ? this.rawNotebookProvider.createNotebook(
