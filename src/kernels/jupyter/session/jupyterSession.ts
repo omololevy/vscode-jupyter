@@ -29,6 +29,7 @@ import { getNameOfKernelConnection } from '../../helpers';
 import { KernelConnectionMetadata, isLocalConnection } from '../../types';
 import { JupyterKernelService } from '../jupyterKernelService';
 import { JupyterWebSockets } from './jupyterWebSocket';
+import { getDisplayPath } from '../../../client/common/platform/fs-paths';
 
 const jvscIdentifier = '-jvsc-';
 function getRemoteIPynbSuffix(): string {
@@ -255,6 +256,11 @@ export class JupyterSession extends BaseJupyterSession {
         token: CancellationToken;
         ui: IDisplayOptions;
     }): Promise<ISessionWithSocket> {
+        traceInfoIfCI(
+            `JupyterSession.createSession for ${getDisplayPath(this.resource)}, options.ui.disableUI=${
+                options.ui.disableUI
+            }`
+        );
         console.error(new Error('Where is createSession called from?'));
         // Create our backing file for the notebook
         const backingFile = await this.createBackingFile();
@@ -264,7 +270,9 @@ export class JupyterSession extends BaseJupyterSession {
             // Make sure the kernel actually exists and is up to date.
             try {
                 traceInfoIfCI(
-                    `JupyterSession.createSession ${this.kernelConnectionMetadata.id}, options.ui.disableUI=${options.ui.disableUI}`
+                    `JupyterSession.createSession ${this.kernelConnectionMetadata.id} for ${getDisplayPath(
+                        this.resource
+                    )}, options.ui.disableUI=${options.ui.disableUI}`
                 );
                 await this.kernelService.ensureKernelIsUsable(
                     this.resource,

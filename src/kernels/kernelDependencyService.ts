@@ -65,7 +65,7 @@ export class KernelDependencyService implements IKernelDependencyService {
         traceInfo(
             `installMissingDependencies ${getDisplayPath(kernelConnection.interpreter?.path)}, ui.disabled=${
                 ui.disableUI
-            }`
+            } for resource ${getDisplayPath(resource)}`
         );
         console.error(new Error('Where is installMissingDependencies called from'));
         if (

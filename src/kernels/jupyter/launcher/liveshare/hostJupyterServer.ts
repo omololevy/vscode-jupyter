@@ -7,7 +7,7 @@ import { CancellationToken } from 'vscode-jsonrpc';
 import { injectable, inject, named } from 'inversify';
 import { IWorkspaceService } from '../../../../client/common/application/types';
 import { STANDARD_OUTPUT_CHANNEL } from '../../../../client/common/constants';
-import { traceInfo, traceError } from '../../../../client/common/logger';
+import { traceInfo, traceError, traceInfoIfCI } from '../../../../client/common/logger';
 import {
     IAsyncDisposableRegistry,
     IOutputChannel,
@@ -33,6 +33,7 @@ import { computeWorkingDirectory } from '../../jupyterUtils';
 import { JupyterSessionManager } from '../../session/jupyterSessionManager';
 import { JupyterNotebook } from '../jupyterNotebook';
 import { noop } from '../../../../client/common/utils/misc';
+import { getDisplayPath } from '../../../../client/common/platform/fs-paths';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 @injectable()
@@ -158,6 +159,9 @@ export class HostJupyterServer implements INotebookServer {
         cancelToken: CancellationToken,
         ui: IDisplayOptions
     ): Promise<INotebook> {
+        traceInfoIfCI(
+            `HostJupyterServer.createNotebook for ${getDisplayPath(resource)} with ui.disableUI=${ui.disableUI}`
+        );
         if (!this.sessionManager || this.isDisposed) {
             throw new SessionDisposedError();
         }
