@@ -59,7 +59,7 @@ export class JupyterKernelService {
     public async ensureKernelIsUsable(
         resource: Resource,
         @logValue<KernelConnectionMetadata>('id') kernel: KernelConnectionMetadata,
-        @ignoreLogging() ui: IDisplayOptions,
+        @logValue<IDisplayOptions>('disableUI') ui: IDisplayOptions,
         @ignoreLogging() cancelToken: CancellationToken
     ): Promise<void> {
         // If we have an interpreter, make sure it has the correct dependencies installed

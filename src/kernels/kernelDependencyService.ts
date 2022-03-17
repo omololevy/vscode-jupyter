@@ -21,7 +21,7 @@ import {
 } from '../client/datascience/types';
 import { IServiceContainer } from '../client/ioc/types';
 import { traceDecorators } from '../client/logging';
-import { ignoreLogging, logValue, TraceOptions } from '../client/logging/trace';
+import { ignoreLogging, logValue } from '../client/logging/trace';
 import { EnvironmentType, PythonEnvironment } from '../client/pythonEnvironments/info';
 import { sendTelemetryEvent } from '../client/telemetry';
 import { getTelemetrySafeHashedString } from '../client/telemetry/helpers';
@@ -54,7 +54,7 @@ export class KernelDependencyService implements IKernelDependencyService {
      * Configures the python interpreter to ensure it can run a Jupyter Kernel by installing any missing dependencies.
      * If user opts not to install they can opt to select another interpreter.
      */
-    @traceDecorators.verbose('Install Missing Dependencies', TraceOptions.ReturnValue)
+    @traceDecorators.verbose('Install Missing Dependencies')
     public async installMissingDependencies(
         resource: Resource,
         kernelConnection: KernelConnectionMetadata,
@@ -62,7 +62,11 @@ export class KernelDependencyService implements IKernelDependencyService {
         @ignoreLogging() token: CancellationToken,
         ignoreCache?: boolean
     ): Promise<KernelInterpreterDependencyResponse> {
-        traceInfo(`installMissingDependencies ${getDisplayPath(kernelConnection.interpreter?.path)}`);
+        traceInfo(
+            `installMissingDependencies ${getDisplayPath(kernelConnection.interpreter?.path)} with ui.disableUI=${
+                ui.disableUI
+            }`
+        );
         if (
             kernelConnection.kind === 'connectToLiveKernel' ||
             kernelConnection.kind === 'startUsingRemoteKernelSpec' ||
