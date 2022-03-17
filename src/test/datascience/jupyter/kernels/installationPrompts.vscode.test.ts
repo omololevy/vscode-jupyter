@@ -477,7 +477,8 @@ suite('DataScience Install IPyKernel (slow) (install)', function () {
             assert.fail('Did not fail as expected');
         } catch (ex) {
             const err = WrappedError.unwrap(ex) as BaseKernelError;
-            assert.strictEqual(err.category, 'noipykernel');
+            // Depending on whether its jupter or raw kernels, we could get a different error thrown.
+            assert.include('noipykernel kerneldied', err.category);
         }
 
         console.log('Step6');
