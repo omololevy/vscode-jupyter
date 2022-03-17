@@ -452,7 +452,7 @@ suite('DataScience Install IPyKernel (slow) (install)', function () {
         await waitForExecutionCompletedSuccessfully(cell);
     });
 
-    test('Ensure ipykernel install prompt is NOT displayed when auto start is enabled & ipykernel is missing (VSCode Notebook)', async function () {
+    test.only('Ensure ipykernel install prompt is NOT displayed when auto start is enabled & ipykernel is missing (VSCode Notebook)', async function () {
         // Ensure we have auto start enabled, and verify kernel startup fails silently without any notifications.
         // When running a cell we should get an install prompt.
         configSettings.disableJupyterAutoStart = false;
