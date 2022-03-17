@@ -440,7 +440,7 @@ suite('DataScience Install IPyKernel (slow) (install)', function () {
         assert.equal(cell.outputs.length, 0);
 
         // Insert another cell so we can test run all
-        await insertCodeCell('print("foo")');
+        const cell2 = await insertCodeCell('print("foo")');
 
         // The prompt should be displayed when we run a cell.
         const runPromise = runAllCellsInActiveNotebook();
@@ -448,8 +448,7 @@ suite('DataScience Install IPyKernel (slow) (install)', function () {
 
         // Now the run should finish
         await runPromise;
-        cell = vscodeNotebook.activeNotebookEditor?.document.cellAt(0)!;
-        await waitForExecutionCompletedSuccessfully(cell);
+        await Promise.all([waitForExecutionCompletedSuccessfully(cell), waitForExecutionCompletedSuccessfully(cell2)]);
     });
 
     test('Ensure ipykernel install prompt is NOT displayed when auto start is enabled & ipykernel is missing (VSCode Notebook)', async function () {
