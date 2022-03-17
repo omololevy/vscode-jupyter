@@ -846,6 +846,7 @@ export interface IEventNamePropertyMapping {
          */
         isModulePresent?: 'true' | undefined;
         action:
+            | 'cancelled' // User cancelled the installation or closed the notebook or the like.
             | 'displayed' // Install prompt may have been displayed.
             | 'prompted' // Install prompt was displayed.
             | 'installed' // Installation disabled (this is what python extension returns).

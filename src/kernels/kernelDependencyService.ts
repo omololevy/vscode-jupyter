@@ -6,11 +6,12 @@
 import { inject, injectable, named } from 'inversify';
 import { CancellationToken, CancellationTokenSource, Memento } from 'vscode';
 import { IApplicationShell } from '../client/common/application/types';
-import { createPromiseFromCancellation } from '../client/common/cancellation';
+import { createPromiseFromCancellation, wrapCancellationTokens } from '../client/common/cancellation';
 import { traceInfo, traceError, traceInfoIfCI } from '../client/common/logger';
 import { getDisplayPath } from '../client/common/platform/fs-paths';
 import { IMemento, GLOBAL_MEMENTO, IsCodeSpace, Resource } from '../client/common/types';
 import { DataScience, Common } from '../client/common/utils/localize';
+import { noop } from '../client/common/utils/misc';
 import { getResourceType } from '../client/datascience/common';
 import { KernelProgressReporter } from '../client/datascience/progress/kernelProgressReporter';
 import {
@@ -88,14 +89,25 @@ export class KernelDependencyService implements IKernelDependencyService {
         }
 
         // Cache the install run
-        const cancelTokenSource = new CancellationTokenSource();
         let promise = this.installPromises.get(kernelConnection.interpreter.path);
+        let cancelTokenSource: CancellationTokenSource | undefined;
         if (!promise) {
+            const cancelTokenSource = new CancellationTokenSource();
+            const disposable = token.onCancellationRequested(() => {
+                cancelTokenSource.cancel();
+                disposable.dispose();
+            });
             promise = KernelProgressReporter.wrapAndReportProgress(
                 resource,
                 DataScience.installingMissingDependencies(),
                 () => this.runInstaller(resource, kernelConnection.interpreter!, ui, cancelTokenSource)
             );
+            promise
+                .finally(() => {
+                    disposable.dispose();
+                    cancelTokenSource.dispose();
+                })
+                .catch(noop);
             this.installPromises.set(kernelConnection.interpreter.path, promise);
         }
 
@@ -104,7 +116,7 @@ export class KernelDependencyService implements IKernelDependencyService {
         try {
             // This can throw an exception (if say it fails to install) or it can cancel
             dependencyResponse = await promise;
-            if (cancelTokenSource.token?.isCancellationRequested || token.isCancellationRequested) {
+            if (cancelTokenSource?.token?.isCancellationRequested || token.isCancellationRequested) {
                 dependencyResponse = KernelInterpreterDependencyResponse.cancel;
             }
         } catch (ex) {
@@ -169,7 +181,11 @@ export class KernelDependencyService implements IKernelDependencyService {
         ui: IDisplayOptions,
         cancelTokenSource: CancellationTokenSource
     ): Promise<KernelInterpreterDependencyResponse> {
-        traceInfoIfCI(`Run Installer for ${getDisplayPath(resource)} ui.disableUI=${ui.disableUI}`);
+        traceInfoIfCI(
+            `Run Installer for ${getDisplayPath(resource)} ui.disableUI=${
+                ui.disableUI
+            }, cancelTokenSource.token.isCancellationRequested=${cancelTokenSource.token.isCancellationRequested}`
+        );
         console.error(new Error('Run installer'));
         // If there's no UI, then cancel installation.
         if (ui.disableUI) {
@@ -257,7 +273,7 @@ export class KernelDependencyService implements IKernelDependencyService {
                 });
                 const cancellationPromise = createPromiseFromCancellation({
                     cancelAction: 'resolve',
-                    defaultValue: InstallerResponse.Ignore,
+                    defaultValue: InstallerResponse.Cancelled,
                     token: cancelTokenSource.token
                 });
                 // Always pass a cancellation token to `install`, to ensure it waits until the module is installed.
