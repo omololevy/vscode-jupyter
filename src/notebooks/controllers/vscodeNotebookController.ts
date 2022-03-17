@@ -29,7 +29,7 @@ import {
 } from '../../client/common/application/types';
 import { PYTHON_LANGUAGE } from '../../client/common/constants';
 import { disposeAllDisposables } from '../../client/common/helpers';
-import { traceInfoIfCI, traceInfo, traceVerbose } from '../../client/common/logger';
+import { traceInfoIfCI, traceInfo, traceVerbose, traceWarning } from '../../client/common/logger';
 import { getDisplayPath } from '../../client/common/platform/fs-paths';
 import {
     IBrowserService,
@@ -226,6 +226,19 @@ export class VSCodeNotebookController implements Disposable {
             traceInfoIfCI('No cells passed to handleExecution');
             return;
         }
+        // Found on CI that sometimes VS Code calls this with old deleted cells.
+        // See here https://github.com/microsoft/vscode-jupyter/runs/5581627878?check_suite_focus=true
+        cells = cells.filter((cell) => {
+            if (cell.index < 0) {
+                traceWarning(
+                    `Attempting to run a cell with index ${cell.index}, kind ${
+                        cell.kind
+                    }, text = ${cell.document.getText()}`
+                );
+                return false;
+            }
+            return true;
+        });
         traceInfoIfCI(
             `VSCodeNotebookController::handleExecution for ${getDisplayPath(notebook.uri)} for cells ${
                 cells.length

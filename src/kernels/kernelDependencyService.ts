@@ -67,6 +67,7 @@ export class KernelDependencyService implements IKernelDependencyService {
                 ui.disableUI
             }`
         );
+        console.error(new Error('Where is installMissingDependencies called from'));
         if (
             kernelConnection.kind === 'connectToLiveKernel' ||
             kernelConnection.kind === 'startUsingRemoteKernelSpec' ||
