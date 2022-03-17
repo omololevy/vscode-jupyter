@@ -34,7 +34,6 @@ import { JupyterSessionManager } from '../../session/jupyterSessionManager';
 import { JupyterNotebook } from '../jupyterNotebook';
 import { noop } from '../../../../client/common/utils/misc';
 import { getDisplayPath } from '../../../../client/common/platform/fs-paths';
-import { CancellationError } from 'vscode';
 import { Cancellation } from '../../../../client/common/cancellation';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

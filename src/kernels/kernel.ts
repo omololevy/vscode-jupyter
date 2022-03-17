@@ -14,8 +14,7 @@ import {
     NotebookController,
     NotebookDocument,
     ColorThemeKind,
-    Disposable,
-    CancellationError
+    Disposable
 } from 'vscode';
 import { IApplicationShell, IWorkspaceService } from '../client/common/application/types';
 import { WrappedError } from '../client/../extension/errors/types';

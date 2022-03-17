@@ -4,7 +4,6 @@
 'use strict';
 
 import { inject, injectable } from 'inversify';
-import { CancellationError } from 'vscode';
 import { IPythonExtensionChecker } from '../../../client/api/types';
 import { Cancellation } from '../../../client/common/cancellation';
 import { IConfigurationService } from '../../../client/common/types';

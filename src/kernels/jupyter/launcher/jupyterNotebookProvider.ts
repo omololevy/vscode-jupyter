@@ -15,7 +15,6 @@ import {
     INotebook
 } from '../../../client/datascience/types';
 import { isLocalConnection } from '../../types';
-import { CancellationError } from 'vscode';
 import { Cancellation } from '../../../client/common/cancellation';
 
 // When the NotebookProvider looks to create a notebook it uses this class to create a Jupyter notebook
