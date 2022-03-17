@@ -413,7 +413,13 @@ export class Kernel implements IKernel {
             this._onStarted.fire();
             return notebook;
         } catch (ex) {
-            traceError(`failed to create INotebook in kernel, UI Disabled = ${this.startupUI.disableUI}`, ex);
+            // Don't log errors if UI is disabled (e.g. auto starting a kernel)
+            // Else we just pollute the logs with lots of noise.
+            if (this.startupUI.disableUI) {
+                traceVerbose(`failed to create INotebook in kernel, UI Disabled = ${this.startupUI.disableUI}`, ex);
+            } else {
+                traceError(`failed to create INotebook in kernel, UI Disabled = ${this.startupUI.disableUI}`, ex);
+            }
             if (this.startCancellation.token.isCancellationRequested) {
                 throw new CancellationError();
             }

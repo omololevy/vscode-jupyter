@@ -145,12 +145,15 @@ export class JupyterSession extends BaseJupyterSession {
                 await this.waitForIdleOnSession(newSession, this.idleTimeout);
             }
         } catch (exc) {
+            // Don't log errors if UI is disabled (e.g. auto starting a kernel)
+            // Else we just pollute the logs with lots of noise.
+            const loggerFn = options.ui.disableUI ? traceVerbose : traceError;
             // Don't swallow known exceptions.
             if (exc instanceof BaseError) {
-                traceError('Failed to change kernel, re-throwing', exc);
+                loggerFn('Failed to change kernel, re-throwing', exc);
                 throw exc;
             } else {
-                traceError('Failed to change kernel', exc);
+                loggerFn('Failed to change kernel', exc);
                 // Throw a new exception indicating we cannot change.
                 throw new JupyterInvalidKernelError(this.kernelConnectionMetadata);
             }
