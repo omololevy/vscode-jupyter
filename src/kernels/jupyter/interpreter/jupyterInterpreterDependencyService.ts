@@ -128,7 +128,7 @@ export class JupyterInterpreterDependencyService {
         interpreter: PythonEnvironment,
         _error?: JupyterInstallError
     ): Promise<JupyterInterpreterDependencyResponse> {
-        traceInfoIfCI('InstallMissingDependencies');
+        traceInfoIfCI('InstallMissingDependencies for Jupyter');
         const tokenSource = new CancellationTokenSource();
         try {
             // If we're dealing with a non-conda environment & pip isn't installed, we can't install anything.

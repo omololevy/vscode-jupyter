@@ -107,6 +107,7 @@ export class KernelDependencyService implements IKernelDependencyService {
                 dependencyResponse = KernelInterpreterDependencyResponse.cancel;
             }
         } catch (ex) {
+            traceInfoIfCI(`Failed to install kernel dependency`, ex);
             // Failure occurred
             dependencyResponse = KernelInterpreterDependencyResponse.failed;
         } finally {
@@ -167,7 +168,8 @@ export class KernelDependencyService implements IKernelDependencyService {
         ui: IDisplayOptions,
         cancelTokenSource: CancellationTokenSource
     ): Promise<KernelInterpreterDependencyResponse> {
-        traceInfoIfCI(`Run Installer ${ui.disableUI}`);
+        traceInfoIfCI(`Run Installer ui.disableUI=${ui.disableUI}`);
+        console.error(new Error('Run installer'));
         // If there's no UI, then cancel installation.
         if (ui.disableUI) {
             return KernelInterpreterDependencyResponse.uiHidden;
