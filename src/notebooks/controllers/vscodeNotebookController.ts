@@ -226,6 +226,11 @@ export class VSCodeNotebookController implements Disposable {
             traceInfoIfCI('No cells passed to handleExecution');
             return;
         }
+        traceInfoIfCI(
+            `VSCodeNotebookController::handleExecution for ${getDisplayPath(notebook.uri)} for cells ${
+                cells.length
+            } with data ${cells.map((cell) => cell.document.getText()).join('\n#CELL\n')}`
+        );
         // When we receive a cell execute request, first ensure that the notebook is trusted.
         // If it isn't already trusted, block execution until the user trusts it.
         if (!this.workspace.isTrusted) {
