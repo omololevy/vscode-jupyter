@@ -263,7 +263,9 @@ export class JupyterSession extends BaseJupyterSession {
         if (this.kernelConnectionMetadata?.interpreter && isLocalConnection(this.kernelConnectionMetadata)) {
             // Make sure the kernel actually exists and is up to date.
             try {
-                traceInfoIfCI(`JupyterSession.createSession ${this.kernelConnectionMetadata.id}, options.ui.disableUI=${options.ui.disableUI}`);
+                traceInfoIfCI(
+                    `JupyterSession.createSession ${this.kernelConnectionMetadata.id}, options.ui.disableUI=${options.ui.disableUI}`
+                );
                 await this.kernelService.ensureKernelIsUsable(
                     this.resource,
                     this.kernelConnectionMetadata,

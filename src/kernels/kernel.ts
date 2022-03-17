@@ -70,6 +70,7 @@ import {
     NotebookCellRunState
 } from './types';
 import { KernelExecution } from '../notebooks/execution/kernelExecution';
+import { traceCellMessage } from '../notebooks/helpers';
 
 export class Kernel implements IKernel {
     get connection(): INotebookProviderConnection | undefined {
@@ -185,6 +186,7 @@ export class Kernel implements IKernel {
     }
 
     public async executeCell(cell: NotebookCell): Promise<NotebookCellRunState> {
+        traceCellMessage(cell, `kernel.executeCell, ${getDisplayPath(cell.notebook.uri)}`);
         sendKernelTelemetryEvent(this.resourceUri, Telemetry.ExecuteCell);
         const stopWatch = new StopWatch();
         const sessionPromise = this.startNotebook().then((nb) => nb.session);
@@ -240,6 +242,7 @@ export class Kernel implements IKernel {
         }
     }
     public async dispose(): Promise<void> {
+        traceInfoIfCI(`Dispose Kernel`);
         this._disposing = true;
         if (this.disposingPromise) {
             return this.disposingPromise;
@@ -249,13 +252,14 @@ export class Kernel implements IKernel {
         const disposeImpl = async () => {
             traceInfo(`Dispose kernel ${(this.resourceUri || this.notebookDocument.uri).toString()}`);
             this.restarting = undefined;
+            const promises: Promise<void>[] = [];
+            promises.push(this.kernelExecution.cancel());
             this.notebook = this.notebook
                 ? this.notebook
                 : this._notebookPromise
                 ? await this._notebookPromise
                 : undefined;
             this._notebookPromise = undefined;
-            const promises: Promise<void>[] = [];
             if (this.notebook) {
                 promises.push(this.notebook.session.dispose().catch(noop));
                 this.notebook = undefined;
@@ -263,6 +267,8 @@ export class Kernel implements IKernel {
             this._disposed = true;
             this._onDisposed.fire();
             this._onStatusChanged.fire('dead');
+            // TODO: Why can't we dispose this early on, why do we need to await on the notebookPromise?
+            // Feels a little too late (i.e. unnecessarily waiting for a while).
             this.kernelExecution.dispose();
             await Promise.all(promises);
         };
