@@ -2019,6 +2019,7 @@ export async function wrapKernelMethod(
                 await notifyAndRestartDeadKernel(kernel, serviceContainer);
             }
         } catch (error) {
+            traceInfoIfCI(`Error in wrapKernelMethod`, error);
             controller = await handleKernelError(serviceContainer, error, context, resource, kernel, controller);
 
             // When we wrap around, update the current method to start. This

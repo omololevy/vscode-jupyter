@@ -15,7 +15,7 @@ import { KernelDiedError } from './kernelDiedError';
 import { KernelPortNotUsedTimeoutError } from './kernelPortNotUsedTimeoutError';
 import { KernelProcessExitedError } from './kernelProcessExitedError';
 import { IApplicationShell, IWorkspaceService } from '../../client/common/application/types';
-import { traceWarning } from '../../client/common/logger';
+import { traceInfoIfCI, traceWarning } from '../../client/common/logger';
 import { IBrowserService, IConfigurationService, Resource } from '../../client/common/types';
 import { DataScience, Common } from '../../client/common/utils/localize';
 import { DisplayOptions } from '../../client/datascience/displayOptions';
@@ -96,6 +96,7 @@ export class DataScienceErrorHandler implements IDataScienceErrorHandler {
         error: Error,
         context: 'start' | 'restart' | 'interrupt' | 'execution'
     ) {
+        traceInfoIfCI('getErrorMessageForDisplayInCell');
         error = WrappedError.unwrap(error);
         if (error instanceof JupyterKernelDependencyError) {
             return getIPyKernelMissingErrorMessageForCell(error.kernelConnectionMetadata) || error.message;

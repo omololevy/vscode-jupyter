@@ -7,7 +7,7 @@ import { inject, injectable } from 'inversify';
 import { CancellationToken, CancellationTokenSource } from 'vscode';
 import { IApplicationShell } from '../../../client/common/application/types';
 import { createPromiseFromCancellation, Cancellation } from '../../../client/common/cancellation';
-import { traceError } from '../../../client/common/logger';
+import { traceError, traceInfoIfCI } from '../../../client/common/logger';
 import { DataScience, Common } from '../../../client/common/utils/localize';
 import { noop } from '../../../client/common/utils/misc';
 import { HelpLinks } from '../../../client/datascience/constants';
@@ -128,6 +128,7 @@ export class JupyterInterpreterDependencyService {
         interpreter: PythonEnvironment,
         _error?: JupyterInstallError
     ): Promise<JupyterInterpreterDependencyResponse> {
+        traceInfoIfCI('InstallMissingDependencies');
         const tokenSource = new CancellationTokenSource();
         try {
             // If we're dealing with a non-conda environment & pip isn't installed, we can't install anything.
@@ -174,7 +175,7 @@ export class JupyterInterpreterDependencyService {
                     sortProductsInOrderForInstallation(productsToInstall);
 
                     let productToInstall = productsToInstall.shift();
-                    const cancellatonPromise = createPromiseFromCancellation({
+                    const cancellationPromise = createPromiseFromCancellation({
                         cancelAction: 'resolve',
                         defaultValue: InstallerResponse.Ignore,
                         token: tokenSource.token
@@ -189,7 +190,7 @@ export class JupyterInterpreterDependencyService {
                                 undefined,
                                 pipInstalledInNonCondaEnv === false
                             ),
-                            cancellatonPromise
+                            cancellationPromise
                         ]);
                         if (response === InstallerResponse.Installed) {
                             productToInstall = productsToInstall.shift();
