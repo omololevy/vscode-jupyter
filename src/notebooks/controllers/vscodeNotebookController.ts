@@ -39,16 +39,17 @@ import {
     IExtensionContext,
     IPathUtils
 } from '../../client/common/types';
-import { createDeferred } from '../../client/common/utils/async';
+import { createDeferred, createDeferredFrom, Deferred } from '../../client/common/utils/async';
 import { chainable } from '../../client/common/utils/decorators';
 import { DataScience, Common } from '../../client/common/utils/localize';
 import { noop } from '../../client/common/utils/misc';
 import { sendNotebookOrKernelLanguageTelemetry } from '../../client/datascience/common';
+import { DisplayOptions } from '../../client/datascience/displayOptions';
 import {
     initializeInteractiveOrNotebookTelemetryBasedOnUserAction,
     sendKernelTelemetryEvent
 } from '../../client/datascience/telemetry/telemetry';
-import { IDataScienceErrorHandler, KernelSocketInformation } from '../../client/datascience/types';
+import { IDataScienceErrorHandler, IDisplayOptions, KernelSocketInformation } from '../../client/datascience/types';
 import { IServiceContainer } from '../../client/ioc/types';
 import { traceDecorators } from '../../client/logging';
 import { TraceOptions } from '../../client/logging/trace';
@@ -414,6 +415,9 @@ export class VSCodeNotebookController implements Disposable {
     }
 
     private handleInterrupt(notebook: NotebookDocument) {
+        if (!this.isAssociatedWithDocument(notebook)) {
+            return;
+        }
         notebook.getCells().forEach((cell) => traceCellMessage(cell, 'Cell cancellation requested'));
         this.commandManager
             .executeCommand(Commands.NotebookEditorInterruptKernel, notebook.uri)
@@ -422,16 +426,23 @@ export class VSCodeNotebookController implements Disposable {
 
     private async executeCell(doc: NotebookDocument, cell: NotebookCell) {
         traceInfo(`Execute Cell ${cell.index} ${getDisplayPath(cell.notebook.uri)}`);
-
+        const startTime = new Date().getTime();
         // Start execution now (from the user's point of view)
-        const execution = CellExecutionCreator.getOrCreate(cell, this.controller);
-        execution.start(new Date().getTime());
+        let execution = CellExecutionCreator.getOrCreate(cell, this.controller);
+        execution.start(startTime);
         void execution.clearOutput(cell);
 
         // Connect to a matching kernel if possible (but user may pick a different one)
         let context: 'start' | 'execution' = 'start';
+        let kernel: IKernel | undefined;
         try {
-            const kernel = await this.connectToKernel(doc);
+            kernel = await this.connectToKernel(doc);
+            // If the controller changed, then ensure to create a new cell execution object.
+            if (kernel && kernel.controller.id !== execution.controllerId) {
+                execution.end(undefined);
+                execution = CellExecutionCreator.getOrCreate(cell, kernel.controller);
+                execution.start(startTime);
+            }
             context = 'execution';
             if (kernel.controller.id === this.id) {
                 this.updateKernelInfoInNotebookWhenAvailable(kernel, doc);
@@ -439,7 +450,6 @@ export class VSCodeNotebookController implements Disposable {
             return await kernel.executeCell(cell);
         } catch (ex) {
             const errorHandler = this.serviceContainer.get<IDataScienceErrorHandler>(IDataScienceErrorHandler);
-
             // If there was a failure connecting or executing the kernel, stick it in this cell
             displayErrorsInCell(cell, execution, await errorHandler.getErrorMessageForDisplayInCell(ex, context));
             const isCancelled =
@@ -452,13 +462,59 @@ export class VSCodeNotebookController implements Disposable {
 
         // Execution should be ended elsewhere
     }
+    private readonly connections = new WeakMap<
+        NotebookDocument,
+        { kernel: Deferred<IKernel>; options: IDisplayOptions }
+    >();
+    private async connectToKernel(
+        doc: NotebookDocument,
+        options: IDisplayOptions = new DisplayOptions(false)
+    ): Promise<IKernel> {
+        let currentPromise = this.connections.get(doc);
+        if (!options.disableUI && currentPromise?.options.disableUI) {
+            currentPromise.options.disableUI = false;
+        }
+        // If the current kernel has been disposed or in the middle of being disposed, then create another one.
+        // But do that only if we require a UI, else we can just use the current one.
+        if (
+            !options.disableUI &&
+            currentPromise?.kernel.resolved &&
+            (currentPromise?.kernel.value?.disposed || currentPromise?.kernel.value?.disposing)
+        ) {
+            this.connections.delete(doc);
+            currentPromise = undefined;
+        }
+        if (currentPromise) {
+            return currentPromise.kernel.promise;
+        }
+
+        const promise = this.connectToKernelImpl(doc, options);
+        const deferred = createDeferredFrom(promise);
+        // If the kernel gets disposed or we fail to create the kernel, then ensure we remove the cached result.
+        promise
+            .then((kernel) => {
+                kernel.onDisposed(() => {
+                    if (this.connections.get(doc)?.kernel.promise === promise) {
+                        this.connections.delete(doc);
+                    }
+                });
+            })
+            .catch(() => {
+                if (this.connections.get(doc)?.kernel.promise === promise) {
+                    this.connections.delete(doc);
+                }
+            });
+
+        this.connections.set(doc, { kernel: deferred, options });
+        return promise;
+    }
 
     @chainable()
-    private async connectToKernel(doc: NotebookDocument) {
+    private async connectToKernelImpl(doc: NotebookDocument, options: IDisplayOptions) {
         // executeCell can get called multiple times before the first one is resolved. Since we only want
         // one of the calls to connect to the kernel, chain these together. The chained promise will then fail out
         // all of the cells if it fails.
-        return connectToKernel(this, this.serviceContainer, doc.uri, doc);
+        return connectToKernel(this, this.serviceContainer, doc.uri, doc, options);
     }
 
     private updateKernelInfoInNotebookWhenAvailable(kernel: IKernel, doc: NotebookDocument) {
@@ -602,7 +658,7 @@ export class VSCodeNotebookController implements Disposable {
             isLocalConnection(this.kernelConnection)
         ) {
             // Startup could fail due to missing dependencies or the like.
-            void newKernel.start({ disableUI: true });
+            this.connectToKernel(document, new DisplayOptions(true)).catch(noop);
         }
     }
 }

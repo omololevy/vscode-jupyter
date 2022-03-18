@@ -137,6 +137,7 @@ suite('DataScience Install IPyKernel (slow) (install)', function () {
                 .toString('utf8')
                 .replace('<hash>', getInterpreterHash({ path: venvPythonPath }))
         );
+        await installIPyKernel(venvKernelPath);
         await uninstallIPyKernel(venvPythonPath);
         await closeActiveWindows();
         await Promise.all([

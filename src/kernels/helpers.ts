@@ -1975,10 +1975,10 @@ export async function handleKernelError(
     return resultController;
 }
 
-function convertContextToFunction(context: 'start' | 'interrupt' | 'restart') {
+function convertContextToFunction(context: 'start' | 'interrupt' | 'restart', options?: { disableUI?: boolean }) {
     switch (context) {
         case 'start':
-            return (k: IKernel) => k.start();
+            return (k: IKernel) => k.start(options);
 
         case 'interrupt':
             return (k: IKernel) => k.interrupt();
@@ -1993,12 +1993,13 @@ export async function wrapKernelMethod(
     initialContext: 'start' | 'interrupt' | 'restart',
     serviceContainer: IServiceContainer,
     resource: Resource,
-    notebook: NotebookDocument
+    notebook: NotebookDocument,
+    options: { disableUI?: boolean } = { disableUI: false }
 ) {
     const kernelProvider = serviceContainer.get<IKernelProvider>(IKernelProvider);
     let kernel: IKernel | undefined;
     let controller: VSCodeNotebookController = initialController;
-    let currentMethod = convertContextToFunction(initialContext);
+    let currentMethod = convertContextToFunction(initialContext, options);
     let context = initialContext;
     while (kernel === undefined) {
         // Try to create the kernel (possibly again)
@@ -2009,6 +2010,7 @@ export async function wrapKernelMethod(
         });
 
         try {
+            traceInfoIfCI(`Calling ${context} on kernel`);
             await currentMethod(kernel);
 
             // If the kernel is dead, ask the user if they want to restart
@@ -2024,7 +2026,7 @@ export async function wrapKernelMethod(
 
             // When we wrap around, update the current method to start. This
             // means if we're handling a restart or an interrupt that fails, we move onto trying to start the kernel.
-            currentMethod = (k) => k.start();
+            currentMethod = (k) => k.start(options);
             context = 'start';
 
             // Since an error occurred, we have to try again (controller may have switched so we have to pick a new kernel)
@@ -2048,7 +2050,8 @@ export async function connectToKernel(
     initialController: VSCodeNotebookController,
     serviceContainer: IServiceContainer,
     resource: Resource,
-    notebook: NotebookDocument
+    notebook: NotebookDocument,
+    options: { disableUI?: boolean } = { disableUI: false }
 ): Promise<IKernel> {
-    return wrapKernelMethod(initialController, 'start', serviceContainer, resource, notebook);
+    return wrapKernelMethod(initialController, 'start', serviceContainer, resource, notebook, options);
 }
