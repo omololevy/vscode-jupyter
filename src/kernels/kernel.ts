@@ -15,8 +15,7 @@ import {
     NotebookController,
     NotebookDocument,
     ColorThemeKind,
-    Disposable,
-    CancellationError
+    Disposable
 } from 'vscode';
 import { IApplicationShell, IWorkspaceService } from '../client/common/application/types';
 import { WrappedError } from '../client/../extension/errors/types';
@@ -170,7 +169,7 @@ export class Kernel implements IKernel {
         private readonly pythonExecutionFactory: IPythonExecutionFactory,
         private statusProvider: IStatusProvider
     ) {
-        this.id = `{uuid()}#${kernelConnectionMetadata.id}`;
+        this.id = `${uuid()}#${kernelConnectionMetadata.id}`;
         this.kernelExecution = new KernelExecution(
             this,
             appShell,
@@ -354,15 +353,10 @@ export class Kernel implements IKernel {
         }
     }
     private async startNotebook(options: IDisplayOptions = new DisplayOptions(false)): Promise<INotebook> {
-        if (this.notebookDocument.isClosed) {
-            traceWarning(`Notebook closed`);
-            throw new CancellationError();
-        }
         this._startedAtLeastOnce = true;
         traceInfoIfCI(
             `Start Notebook (options.disableUI=${options.disableUI}) for ${getDisplayPath(this.notebookDocument.uri)}.`
         );
-        console.error(new Error('(startNotebook). Where am I called from'));
         if (!options.disableUI) {
             this.startupUI.disableUI = false;
         }
@@ -421,7 +415,6 @@ export class Kernel implements IKernel {
                     this.notebookDocument.uri
                 )}`
             );
-            console.error(new Error('Where am I called from'));
             this.createProgressIndicator(disposables);
             this.isKernelDead = false;
             this._onStatusChanged.fire('starting');
