@@ -15,7 +15,7 @@ import { KernelDiedError } from './kernelDiedError';
 import { KernelPortNotUsedTimeoutError } from './kernelPortNotUsedTimeoutError';
 import { KernelProcessExitedError } from './kernelProcessExitedError';
 import { IApplicationShell, IWorkspaceService } from '../../client/common/application/types';
-import { traceInfoIfCI, traceWarning } from '../../client/common/logger';
+import { traceWarning } from '../../client/common/logger';
 import { IBrowserService, IConfigurationService, Resource } from '../../client/common/types';
 import { DataScience, Common } from '../../client/common/utils/localize';
 import { DisplayOptions } from '../../client/datascience/displayOptions';
@@ -39,6 +39,7 @@ import { JupyterKernelDependencyError } from './jupyterKernelDependencyError';
 import { WrappedError, BaseKernelError, WrappedKernelError, BaseError } from './types';
 import { noop } from '../../client/common/utils/misc';
 import { EnvironmentType } from '../../client/pythonEnvironments/info';
+import { KernelDeadError } from './kernelDeadError';
 
 @injectable()
 export class DataScienceErrorHandler implements IDataScienceErrorHandler {
@@ -96,9 +97,12 @@ export class DataScienceErrorHandler implements IDataScienceErrorHandler {
         error: Error,
         context: 'start' | 'restart' | 'interrupt' | 'execution'
     ) {
-        traceInfoIfCI('getErrorMessageForDisplayInCell');
         error = WrappedError.unwrap(error);
-        if (error instanceof JupyterKernelDependencyError) {
+        if (error instanceof KernelDeadError) {
+            // When we get this we've already asked the user to restart the kernel,
+            // No need to display errors in each cell.
+            return '';
+        } else if (error instanceof JupyterKernelDependencyError) {
             return getIPyKernelMissingErrorMessageForCell(error.kernelConnectionMetadata) || error.message;
         } else if (error instanceof JupyterInstallError) {
             return getJupyterMissingErrorMessageForCell(error) || error.message;

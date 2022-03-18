@@ -6,7 +6,7 @@
 import { inject, injectable, named } from 'inversify';
 import * as path from 'path';
 import { CancellationToken } from 'vscode';
-import { traceInfoIfCI, traceWarning } from '../../../client/common/logger';
+import { traceWarning } from '../../../client/common/logger';
 import {
     IPythonExecutionFactory,
     SpawnOptions,
@@ -76,7 +76,6 @@ export class JupyterInterpreterSubCommandExecutionService
         return this.jupyterDependencyService.areDependenciesInstalled(interpreter, token);
     }
     public async getReasonForJupyterNotebookNotBeingSupported(token?: CancellationToken): Promise<string> {
-        traceInfoIfCI('getReasonForJupyterNotebookNotBeingSupported');
         let interpreter = await this.jupyterInterpreter.getSelectedInterpreter(token);
         if (!interpreter) {
             // Use current interpreter.

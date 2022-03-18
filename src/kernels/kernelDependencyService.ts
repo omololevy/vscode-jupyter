@@ -68,7 +68,6 @@ export class KernelDependencyService implements IKernelDependencyService {
                 ui.disableUI
             } for resource ${getDisplayPath(resource)}`
         );
-        console.error(new Error('Where is installMissingDependencies called from'));
         if (
             kernelConnection.kind === 'connectToLiveKernel' ||
             kernelConnection.kind === 'startUsingRemoteKernelSpec' ||
@@ -186,7 +185,6 @@ export class KernelDependencyService implements IKernelDependencyService {
                 ui.disableUI
             }, cancelTokenSource.token.isCancellationRequested=${cancelTokenSource.token.isCancellationRequested}`
         );
-        console.error(new Error('Run installer'));
         // If there's no UI, then cancel installation.
         if (ui.disableUI) {
             return KernelInterpreterDependencyResponse.uiHidden;

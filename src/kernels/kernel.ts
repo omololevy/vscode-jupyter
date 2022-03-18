@@ -170,7 +170,7 @@ export class Kernel implements IKernel {
         private readonly pythonExecutionFactory: IPythonExecutionFactory,
         private statusProvider: IStatusProvider
     ) {
-        this.id = `${uuid()}#${kernelConnectionMetadata.id}`;
+        this.id = `{uuid()}#${kernelConnectionMetadata.id}`;
         this.kernelExecution = new KernelExecution(
             this,
             appShell,
@@ -194,9 +194,6 @@ export class Kernel implements IKernel {
     }
 
     public async executeCell(cell: NotebookCell): Promise<NotebookCellRunState> {
-        if (cell.notebook.isClosed) {
-            return NotebookCellRunState.Idle;
-        }
         traceCellMessage(cell, `kernel.executeCell, ${getDisplayPath(cell.notebook.uri)}`);
         sendKernelTelemetryEvent(this.resourceUri, Telemetry.ExecuteCell);
         const stopWatch = new StopWatch();
@@ -278,8 +275,6 @@ export class Kernel implements IKernel {
             this._disposed = true;
             this._onDisposed.fire();
             this._onStatusChanged.fire('dead');
-            // TODO: Why can't we dispose this early on, why do we need to await on the notebookPromise?
-            // Feels a little too late (i.e. unnecessarily waiting for a while).
             this.kernelExecution.dispose();
             await Promise.all(promises);
         };

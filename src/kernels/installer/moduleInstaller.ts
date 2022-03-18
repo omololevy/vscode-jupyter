@@ -65,8 +65,6 @@ export abstract class ModuleInstaller implements IModuleInstaller {
             }>,
             token: CancellationToken
         ) => {
-            // Args can be for a specific exe or for the interpreter. Both need to
-            // use an activated environment though
             const deferred = createDeferred();
             // When the progress is canceled notify caller
             token.onCancellationRequested(() => {
@@ -90,6 +88,8 @@ export abstract class ModuleInstaller implements IModuleInstaller {
                     deferred.reject(ex);
                 }
             } else if (args.exe) {
+                // Args can be for a specific exe or for the interpreter. Both need to
+                // use an activated environment though
                 // For the exe, just figure out the environment variables.
                 const envVars = await activationHelper.getActivatedEnvironmentVariables(undefined, interpreter, false);
                 if (cancelTokenSource.token.isCancellationRequested) {

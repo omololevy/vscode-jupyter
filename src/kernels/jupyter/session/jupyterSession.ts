@@ -261,7 +261,6 @@ export class JupyterSession extends BaseJupyterSession {
                 options.ui.disableUI
             }`
         );
-        console.error(new Error('Where is createSession called from?'));
         // Create our backing file for the notebook
         const backingFile = await this.createBackingFile();
 

@@ -31,7 +31,7 @@ import { traceError, traceInfo, traceInfoIfCI, traceVerbose, traceWarning } from
 import { getDisplayPath } from '../client/common/platform/fs-paths';
 import { IPythonExecutionFactory } from '../client/common/process/types';
 import { IPathUtils, IConfigurationService, Resource, IMemento, GLOBAL_MEMENTO } from '../client/common/types';
-import { createDeferred } from '../client/common/utils/async';
+import { createDeferred, createDeferredFromPromise, Deferred } from '../client/common/utils/async';
 import { DataScience } from '../client/common/utils/localize';
 import { getResourceType } from '../client/datascience/common';
 import { Settings } from '../client/datascience/constants';
@@ -73,6 +73,7 @@ import { INotebookControllerManager } from '../notebooks/types';
 import { PreferredRemoteKernelIdProvider } from './raw/finder/preferredRemoteKernelIdProvider';
 import { findNotebookEditor, selectKernel } from '../notebooks/controllers/kernelSelector';
 import { DisplayOptions } from '../client/datascience/displayOptions';
+import { KernelDeadError } from '../extension/errors/kernelDeadError';
 
 // Helper functions for dealing with kernels and kernelspecs
 
@@ -1990,6 +1991,18 @@ function convertContextToFunction(context: 'start' | 'interrupt' | 'restart', op
     }
 }
 
+const connections = new WeakMap<
+    NotebookDocument,
+    {
+        kernel: Deferred<{
+            kernel: IKernel;
+            controller: VSCodeNotebookController;
+            deadKernelAction?: 'deadKernelWasRestarted' | 'deadKernelWasNoRestarted';
+        }>;
+        options: IDisplayOptions;
+    }
+>();
+
 export async function wrapKernelMethod(
     initialController: VSCodeNotebookController,
     initialContext: 'start' | 'interrupt' | 'restart',
@@ -1997,7 +2010,94 @@ export async function wrapKernelMethod(
     resource: Resource,
     notebook: NotebookDocument,
     options: IDisplayOptions = new DisplayOptions(false)
-) {
+): Promise<IKernel> {
+    let currentPromise = connections.get(notebook);
+    if (!options.disableUI && currentPromise?.options.disableUI) {
+        currentPromise.options.disableUI = false;
+    }
+    // If the current kernel has been disposed or in the middle of being disposed, then create another one.
+    // But do that only if we require a UI, else we can just use the current one.
+    if (
+        !options.disableUI &&
+        currentPromise?.kernel.resolved &&
+        (currentPromise?.kernel.value?.kernel?.disposed || currentPromise?.kernel.value?.kernel?.disposing)
+    ) {
+        connections.delete(notebook);
+        currentPromise = undefined;
+    }
+    const verifyKernelState = async (
+        promise: Promise<{
+            kernel: IKernel;
+            controller: VSCodeNotebookController;
+            deadKernelAction?: 'deadKernelWasRestarted' | 'deadKernelWasNoRestarted';
+        }>
+    ): Promise<IKernel> => {
+        const { kernel, controller, deadKernelAction } = await promise;
+        // Before returning, but without disposing the kernel, double check it's still valid
+        // If a restart didn't happen, then we can't connect. Throw an error.
+        // Do this outside of the loop so that subsequent calls will still ask because the kernel isn't disposed
+        if (kernel.status === 'dead' || (kernel.status === 'terminating' && !kernel.disposed && !kernel.disposing)) {
+            // If the kernel is dead, then remove the cached promise, & try to get the kernel again.
+            // At that point, it will get restarted.
+            if (connections.get(notebook)?.kernel.promise === promise) {
+                connections.delete(notebook);
+            }
+            if (deadKernelAction === 'deadKernelWasNoRestarted') {
+                throw new KernelDeadError(kernel.kernelConnectionMetadata);
+            } else if (deadKernelAction === 'deadKernelWasRestarted') {
+                return kernel;
+            }
+            // Kernel is dead and we didn't prompt the user to restart it, hence re-run the code that will prompt the user for a restart.
+            return wrapKernelMethod(controller, 'start', serviceContainer, resource, notebook, options);
+        }
+        return kernel;
+    };
+
+    // Wrap the kernel method again to interrupt/restart this kernel.
+    if (currentPromise && initialContext !== 'restart' && initialContext !== 'interrupt') {
+        return verifyKernelState(currentPromise.kernel.promise);
+    }
+
+    const promise = wrapKernelMethodImpl(
+        initialController,
+        initialContext,
+        serviceContainer,
+        resource,
+        notebook,
+        options
+    );
+    const deferred = createDeferredFromPromise(promise);
+    // If the kernel gets disposed or we fail to create the kernel, then ensure we remove the cached result.
+    promise
+        .then((result) => {
+            result.kernel.onDisposed(() => {
+                if (connections.get(notebook)?.kernel === deferred) {
+                    connections.delete(notebook);
+                }
+            });
+        })
+        .catch(() => {
+            if (connections.get(notebook)?.kernel === deferred) {
+                connections.delete(notebook);
+            }
+        });
+
+    connections.set(notebook, { kernel: deferred, options });
+    return verifyKernelState(deferred.promise);
+}
+
+export async function wrapKernelMethodImpl(
+    initialController: VSCodeNotebookController,
+    initialContext: 'start' | 'interrupt' | 'restart',
+    serviceContainer: IServiceContainer,
+    resource: Resource,
+    notebook: NotebookDocument,
+    options: IDisplayOptions = new DisplayOptions(false)
+): Promise<{
+    kernel: IKernel;
+    controller: VSCodeNotebookController;
+    deadKernelAction?: 'deadKernelWasRestarted' | 'deadKernelWasNoRestarted';
+}> {
     const kernelProvider = serviceContainer.get<IKernelProvider>(IKernelProvider);
     let kernel: IKernel | undefined;
     let controller: VSCodeNotebookController = initialController;
@@ -2011,19 +2111,29 @@ export async function wrapKernelMethod(
             resourceUri: resource
         });
 
-        try {
-            traceInfoIfCI(`Calling ${context} on kernel`);
-            await currentMethod(kernel);
+        const isKernelDead = (k: IKernel) =>
+            k.status === 'dead' || (k.status === 'terminating' && !k.disposed && !k.disposing);
 
-            // If the kernel is dead, ask the user if they want to restart
-            if (
-                kernel.status === 'dead' ||
-                (kernel.status === 'terminating' && !kernel.disposed && !kernel.disposing)
-            ) {
-                await notifyAndRestartDeadKernel(kernel, serviceContainer);
+        try {
+            // If the kernel is dead, ask the user if they want to restart.
+            // We need to perform this check first, as its possible we'd call this method for dead kernels.
+            // & if the kernel is dead, prompt to restart.
+            if (initialContext !== 'restart' && isKernelDead(kernel) && !options.disableUI) {
+                const restarted = await notifyAndRestartDeadKernel(kernel, serviceContainer);
+                return {
+                    kernel,
+                    controller,
+                    deadKernelAction: restarted ? 'deadKernelWasRestarted' : 'deadKernelWasNoRestarted'
+                };
+            } else {
+                await currentMethod(kernel);
+
+                // If the kernel is dead, ask the user if they want to restart
+                if (isKernelDead(kernel) && !options.disableUI) {
+                    await notifyAndRestartDeadKernel(kernel, serviceContainer);
+                }
             }
         } catch (error) {
-            traceInfoIfCI(`Error in wrapKernelMethod`, error);
             if (options.disableUI) {
                 throw error;
             }
@@ -2038,17 +2148,7 @@ export async function wrapKernelMethod(
             kernel = undefined;
         }
     }
-    // Before returning, but without disposing the kernel, double check it's still valid
-    // If a restart didn't happen, then we can't connect. Throw an error.
-    // Do this outside of the loop so that subsequent calls will still ask because the kernel isn't disposed
-    if (kernel.status === 'dead' || (kernel.status === 'terminating' && !kernel.disposed && !kernel.disposing)) {
-        throw new Error(
-            DataScience.kernelDiedWithoutError().format(
-                getDisplayNameOrNameOfKernelConnection(kernel.kernelConnectionMetadata)
-            )
-        );
-    }
-    return kernel;
+    return { kernel, controller };
 }
 
 export async function connectToKernel(
