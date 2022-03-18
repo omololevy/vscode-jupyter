@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 'use strict';
+import * as uuid from 'uuid/v4';
 import type * as nbformat from '@jupyterlab/nbformat';
 import type { KernelMessage } from '@jupyterlab/services';
 import { Observable } from 'rxjs/Observable';
@@ -47,7 +48,8 @@ import {
     IJupyterSession,
     INotebookProvider,
     IStatusProvider,
-    InterruptResult
+    InterruptResult,
+    IDisplayOptions
 } from '../client/datascience/types';
 import { calculateWorkingDirectory } from '../client/datascience/utils';
 import { sendTelemetryEvent } from '../client/telemetry';
@@ -74,6 +76,10 @@ import { traceCellMessage } from '../notebooks/helpers';
 import { Cancellation } from '../client/common/cancellation';
 
 export class Kernel implements IKernel {
+    /**
+     * Used for debugging purposes, ability to uniquely identify kernels.
+     */
+    public readonly id: string;
     get connection(): INotebookProviderConnection | undefined {
         return this.notebook?.connection;
     }
@@ -164,6 +170,7 @@ export class Kernel implements IKernel {
         private readonly pythonExecutionFactory: IPythonExecutionFactory,
         private statusProvider: IStatusProvider
     ) {
+        this.id = `${uuid()}#${kernelConnectionMetadata.id}`;
         this.kernelExecution = new KernelExecution(
             this,
             appShell,
@@ -207,7 +214,7 @@ export class Kernel implements IKernel {
         this.trackNotebookCellPerceivedColdTime(stopWatch, sessionPromise, promise).catch(noop);
         return promise;
     }
-    public async start(options?: { disableUI?: boolean }): Promise<void> {
+    public async start(options?: IDisplayOptions): Promise<void> {
         await this.startNotebook(options);
     }
     public async interrupt(): Promise<void> {
@@ -300,7 +307,7 @@ export class Kernel implements IKernel {
             // If the notebook died, then start a new notebook.
             await (this._notebookPromise
                 ? this.kernelExecution.restart(this._notebookPromise?.then((item) => item.session))
-                : this.start({ disableUI: false }));
+                : this.start(new DisplayOptions(false)));
             traceInfoIfCI(`Restarted ${getDisplayPath(this.notebookDocument.uri)}`);
             sendKernelTelemetryEvent(this.resourceUri, Telemetry.NotebookRestart, stopWatch.elapsedTime);
         } catch (ex) {
@@ -351,7 +358,7 @@ export class Kernel implements IKernel {
             );
         }
     }
-    private async startNotebook(options: { disableUI?: boolean } = { disableUI: false }): Promise<INotebook> {
+    private async startNotebook(options: IDisplayOptions = new DisplayOptions(false)): Promise<INotebook> {
         if (this.notebookDocument.isClosed) {
             traceWarning(`Notebook closed`);
             throw new CancellationError();
@@ -364,6 +371,11 @@ export class Kernel implements IKernel {
         if (!options.disableUI) {
             this.startupUI.disableUI = false;
         }
+        options.onDidChangeDisableUI(() => {
+            if (!options.disableUI && this.startupUI.disableUI) {
+                this.startupUI.disableUI = false;
+            }
+        });
         if (!this.startupUI.disableUI) {
             // This means the user is actually running something against the kernel (deliberately).
             initializeInteractiveOrNotebookTelemetryBasedOnUserAction(this.resourceUri, this.kernelConnectionMetadata);

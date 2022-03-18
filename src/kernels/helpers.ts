@@ -44,7 +44,8 @@ import {
     IDataScienceErrorHandler,
     IRawNotebookProvider,
     KernelInterpreterDependencyResponse,
-    IJupyterKernelSpec
+    IJupyterKernelSpec,
+    IDisplayOptions
 } from '../client/datascience/types';
 import { IServiceContainer } from '../client/ioc/types';
 import {
@@ -71,6 +72,7 @@ import { isPythonNotebook } from '../notebooks/helpers';
 import { INotebookControllerManager } from '../notebooks/types';
 import { PreferredRemoteKernelIdProvider } from './raw/finder/preferredRemoteKernelIdProvider';
 import { findNotebookEditor, selectKernel } from '../notebooks/controllers/kernelSelector';
+import { DisplayOptions } from '../client/datascience/displayOptions';
 
 // Helper functions for dealing with kernels and kernelspecs
 
@@ -1975,7 +1977,7 @@ export async function handleKernelError(
     return resultController;
 }
 
-function convertContextToFunction(context: 'start' | 'interrupt' | 'restart', options?: { disableUI?: boolean }) {
+function convertContextToFunction(context: 'start' | 'interrupt' | 'restart', options?: IDisplayOptions) {
     switch (context) {
         case 'start':
             return (k: IKernel) => k.start(options);
@@ -1994,7 +1996,7 @@ export async function wrapKernelMethod(
     serviceContainer: IServiceContainer,
     resource: Resource,
     notebook: NotebookDocument,
-    options: { disableUI?: boolean } = { disableUI: false }
+    options: IDisplayOptions = new DisplayOptions(false)
 ) {
     const kernelProvider = serviceContainer.get<IKernelProvider>(IKernelProvider);
     let kernel: IKernel | undefined;
@@ -2022,6 +2024,9 @@ export async function wrapKernelMethod(
             }
         } catch (error) {
             traceInfoIfCI(`Error in wrapKernelMethod`, error);
+            if (options.disableUI) {
+                throw error;
+            }
             controller = await handleKernelError(serviceContainer, error, context, resource, kernel, controller);
 
             // When we wrap around, update the current method to start. This
@@ -2051,7 +2056,7 @@ export async function connectToKernel(
     serviceContainer: IServiceContainer,
     resource: Resource,
     notebook: NotebookDocument,
-    options: { disableUI?: boolean } = { disableUI: false }
+    options: IDisplayOptions = new DisplayOptions(false)
 ): Promise<IKernel> {
     return wrapKernelMethod(initialController, 'start', serviceContainer, resource, notebook, options);
 }

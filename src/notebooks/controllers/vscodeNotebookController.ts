@@ -462,7 +462,7 @@ export class VSCodeNotebookController implements Disposable {
 
         // Execution should be ended elsewhere
     }
-    private readonly connections = new WeakMap<
+    private static readonly connections = new WeakMap<
         NotebookDocument,
         { kernel: Deferred<IKernel>; options: IDisplayOptions }
     >();
@@ -470,7 +470,7 @@ export class VSCodeNotebookController implements Disposable {
         doc: NotebookDocument,
         options: IDisplayOptions = new DisplayOptions(false)
     ): Promise<IKernel> {
-        let currentPromise = this.connections.get(doc);
+        let currentPromise = VSCodeNotebookController.connections.get(doc);
         if (!options.disableUI && currentPromise?.options.disableUI) {
             currentPromise.options.disableUI = false;
         }
@@ -481,7 +481,7 @@ export class VSCodeNotebookController implements Disposable {
             currentPromise?.kernel.resolved &&
             (currentPromise?.kernel.value?.disposed || currentPromise?.kernel.value?.disposing)
         ) {
-            this.connections.delete(doc);
+            VSCodeNotebookController.connections.delete(doc);
             currentPromise = undefined;
         }
         if (currentPromise) {
@@ -494,18 +494,18 @@ export class VSCodeNotebookController implements Disposable {
         promise
             .then((kernel) => {
                 kernel.onDisposed(() => {
-                    if (this.connections.get(doc)?.kernel.promise === promise) {
-                        this.connections.delete(doc);
+                    if (VSCodeNotebookController.connections.get(doc)?.kernel === deferred) {
+                        VSCodeNotebookController.connections.delete(doc);
                     }
                 });
             })
             .catch(() => {
-                if (this.connections.get(doc)?.kernel.promise === promise) {
-                    this.connections.delete(doc);
+                if (VSCodeNotebookController.connections.get(doc)?.kernel === deferred) {
+                    VSCodeNotebookController.connections.delete(doc);
                 }
             });
 
-        this.connections.set(doc, { kernel: deferred, options });
+        VSCodeNotebookController.connections.set(doc, { kernel: deferred, options });
         return promise;
     }
 
